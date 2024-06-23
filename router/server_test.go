@@ -38,9 +38,9 @@ func TestMain(m *testing.M) {
 	}
 
 	cfg.Android.Enabled = true
-	cfg.Android.APIKey = os.Getenv("ANDROID_API_KEY")
+	cfg.Android.Credential = os.Getenv("FCM_CREDENTIAL")
 
-	if _, err := notify.InitFCMClient(cfg, ""); err != nil {
+	if _, err := notify.InitFCMClient(context.Background(), cfg); err != nil {
 		log.Fatal(err)
 	}
 
@@ -377,9 +377,9 @@ func TestSuccessPushHandler(t *testing.T) {
 	cfg := initTest()
 
 	cfg.Android.Enabled = true
-	cfg.Android.APIKey = os.Getenv("ANDROID_API_KEY")
+	cfg.Android.Credential = os.Getenv("FCM_CREDENTIAL")
 
-	androidToken := os.Getenv("ANDROID_TEST_TOKEN")
+	androidToken := os.Getenv("FCM_TEST_TOKEN")
 
 	r := gofight.New()
 
@@ -474,13 +474,13 @@ func TestSenMultipleNotifications(t *testing.T) {
 
 	cfg.Ios.Enabled = true
 	cfg.Ios.KeyPath = testKeyPath
-	err := notify.InitAPNSClient(cfg)
+	err := notify.InitAPNSClient(ctx, cfg)
 	assert.Nil(t, err)
 
 	cfg.Android.Enabled = true
-	cfg.Android.APIKey = os.Getenv("ANDROID_API_KEY")
+	cfg.Android.Credential = os.Getenv("FCM_CREDENTIAL")
 
-	androidToken := os.Getenv("ANDROID_TEST_TOKEN")
+	androidToken := os.Getenv("FCM_TEST_TOKEN")
 
 	req := notify.RequestPush{
 		Notifications: []notify.PushNotification{
@@ -510,13 +510,13 @@ func TestDisabledAndroidNotifications(t *testing.T) {
 
 	cfg.Ios.Enabled = true
 	cfg.Ios.KeyPath = testKeyPath
-	err := notify.InitAPNSClient(cfg)
+	err := notify.InitAPNSClient(ctx, cfg)
 	assert.Nil(t, err)
 
 	cfg.Android.Enabled = false
-	cfg.Android.APIKey = os.Getenv("ANDROID_API_KEY")
+	cfg.Android.Credential = os.Getenv("FCM_CREDENTIAL")
 
-	androidToken := os.Getenv("ANDROID_TEST_TOKEN")
+	androidToken := os.Getenv("FCM_TEST_TOKEN")
 
 	req := notify.RequestPush{
 		Notifications: []notify.PushNotification{
@@ -546,16 +546,16 @@ func TestSyncModeForNotifications(t *testing.T) {
 
 	cfg.Ios.Enabled = true
 	cfg.Ios.KeyPath = testKeyPath
-	err := notify.InitAPNSClient(cfg)
+	err := notify.InitAPNSClient(ctx, cfg)
 	assert.Nil(t, err)
 
 	cfg.Android.Enabled = true
-	cfg.Android.APIKey = os.Getenv("ANDROID_API_KEY")
+	cfg.Android.Credential = os.Getenv("FCM_CREDENTIAL")
 
 	// enable sync mode
 	cfg.Core.Sync = true
 
-	androidToken := os.Getenv("ANDROID_TEST_TOKEN")
+	androidToken := os.Getenv("FCM_TEST_TOKEN")
 
 	req := notify.RequestPush{
 		Notifications: []notify.PushNotification{
@@ -586,7 +586,7 @@ func TestSyncModeForTopicNotification(t *testing.T) {
 	cfg := initTest()
 
 	cfg.Android.Enabled = true
-	cfg.Android.APIKey = os.Getenv("ANDROID_API_KEY")
+	cfg.Android.Credential = os.Getenv("FCM_CREDENTIAL")
 	cfg.Log.HideToken = false
 
 	// enable sync mode
@@ -598,14 +598,14 @@ func TestSyncModeForTopicNotification(t *testing.T) {
 			{
 				// error:InvalidParameters
 				// Check that the provided parameters have the right name and type.
-				To:       "/topics/foo-bar@@@##",
+				Topic:    "/topics/foo-bar@@@##",
 				Platform: core.PlatFormAndroid,
 				Message:  "This is a Firebase Cloud Messaging Topic Message!",
 			},
 			// android
 			{
 				// success
-				To:       "/topics/foo-bar",
+				Topic:    "/topics/foo-bar",
 				Platform: core.PlatFormAndroid,
 				Message:  "This is a Firebase Cloud Messaging Topic Message!",
 			},
@@ -621,7 +621,7 @@ func TestSyncModeForTopicNotification(t *testing.T) {
 
 	count, logs := handleNotification(ctx, cfg, req, q)
 	assert.Equal(t, 2, count)
-	assert.Equal(t, 1, len(logs))
+	assert.Equal(t, 0, len(logs))
 }
 
 func TestSyncModeForDeviceGroupNotification(t *testing.T) {
@@ -629,7 +629,7 @@ func TestSyncModeForDeviceGroupNotification(t *testing.T) {
 	cfg := initTest()
 
 	cfg.Android.Enabled = true
-	cfg.Android.APIKey = os.Getenv("ANDROID_API_KEY")
+	cfg.Android.Credential = os.Getenv("FCM_CREDENTIAL")
 	cfg.Log.HideToken = false
 
 	// enable sync mode
@@ -639,16 +639,17 @@ func TestSyncModeForDeviceGroupNotification(t *testing.T) {
 		Notifications: []notify.PushNotification{
 			// android
 			{
-				To:       "aUniqueKey",
+				Topic:    "aUniqueKey",
 				Platform: core.PlatFormAndroid,
 				Message:  "This is a Firebase Cloud Messaging Device Group Message!",
 			},
 		},
 	}
 
+	// success
 	count, logs := handleNotification(ctx, cfg, req, q)
 	assert.Equal(t, 1, count)
-	assert.Equal(t, 1, len(logs))
+	assert.Equal(t, 0, len(logs))
 }
 
 func TestDisabledIosNotifications(t *testing.T) {
@@ -657,13 +658,13 @@ func TestDisabledIosNotifications(t *testing.T) {
 
 	cfg.Ios.Enabled = false
 	cfg.Ios.KeyPath = testKeyPath
-	err := notify.InitAPNSClient(cfg)
+	err := notify.InitAPNSClient(ctx, cfg)
 	assert.Nil(t, err)
 
 	cfg.Android.Enabled = true
-	cfg.Android.APIKey = os.Getenv("ANDROID_API_KEY")
+	cfg.Android.Credential = os.Getenv("FCM_CREDENTIAL")
 
-	androidToken := os.Getenv("ANDROID_TEST_TOKEN")
+	androidToken := os.Getenv("FCM_TEST_TOKEN")
 
 	req := notify.RequestPush{
 		Notifications: []notify.PushNotification{

@@ -2,7 +2,7 @@
 
 A push notification micro server using [Gin](https://github.com/gin-gonic/gin) framework written in Go (Golang) and see the [demo app](https://github.com/appleboy/flutter-gorush).
 
-[![Run Lint and Testing](https://github.com/appleboy/gorush/actions/workflows/lint.yml/badge.svg)](https://github.com/appleboy/gorush/actions/workflows/lint.yml)
+[![Run Lint and Testing](https://github.com/appleboy/gorush/actions/workflows/testing.yml/badge.svg)](https://github.com/appleboy/gorush/actions/workflows/testing.yml)
 [![GoDoc](https://godoc.org/github.com/appleboy/gorush?status.svg)](https://pkg.go.dev/github.com/appleboy/gorush)
 [![codecov](https://codecov.io/gh/appleboy/gorush/branch/master/graph/badge.svg)](https://codecov.io/gh/appleboy/gorush)
 [![Go Report Card](https://goreportcard.com/badge/github.com/appleboy/gorush)](https://goreportcard.com/report/github.com/appleboy/gorush)
@@ -28,7 +28,7 @@ A push notification micro server using [Gin](https://github.com/gin-gonic/gin) f
     - [Send Android notification](#send-android-notification)
     - [Send Huawei (HMS) notification](#send-huawei-hms-notification)
     - [Send iOS notification](#send-ios-notification)
-    - [Send Android or iOS notifications using Firebase](#send-android-or-ios-notifications-using-firebase)
+    - [Send Android or iOS notifications using Firebase Cloud Messaging](#send-android-or-ios-notifications-using-firebase-cloud-messaging)
   - [Run gorush web server](#run-gorush-web-server)
   - [Web API](#web-api)
     - [GET /api/stat/go](#get-apistatgo)
@@ -140,7 +140,8 @@ api:
 
 android:
   enabled: true
-  apikey: "YOUR_API_KEY"
+  key_path: "" # path to fcm key file
+  credential: "" # fcm credential data
   max_retry: 0 # resend fail notification, default value zero is disabled
 
 huawei:
@@ -234,7 +235,7 @@ The pre-compiled binaries can be downloaded from [release page](https://github.c
 With `Go` installed
 
 ```sh
-go get -u -v github.com/appleboy/gorush
+go install github.com/appleboy/gorush
 ```
 
 On linux
@@ -260,7 +261,7 @@ wget -c https://github.com/appleboy/gorush/releases/download/v1.16.3/gorush-1.16
 #### Prerequisite Tools
 
 - [Git](http://git-scm.com/)
-- [Go (at least Go 1.11)](https://golang.org/dl/)
+- [Go (at least Go 1.21)](https://go.dev/dl/)
 
 #### Fetch from GitHub
 
@@ -279,11 +280,11 @@ or you can use the `go get` command to install the latest or specific version.
 **Note**: such go get installation aren't guaranteed to work. We recommend using binary installation.
 
 ```sh
-# Go 1.16+
-go install github.com/appleboy/gorush@latest
+# install stable version
+go install github.com/appleboy/gorush
 
-# Go version < 1.16
-go get -u github.com/appleboy/gorush@latest
+# install latest version
+go install github.com/appleboy/gorush@master
 ```
 
 ### Command Usage
@@ -306,45 +307,58 @@ Server Options:
     -t, --token <token>              Notification token
     -e, --engine <engine>            Storage engine (memory, redis ...)
     --title <title>                  Notification title
-    --proxy <proxy>                  Proxy URL (support http, https, or socks5)
+    --proxy <proxy>                  Proxy URL
     --pid <pid path>                 Process identifier path
     --redis-addr <redis addr>        Redis addr (default: localhost:6379)
+    --ping                           healthy check command for container
 iOS Options:
     -i, --key <file>                 certificate key file path
     -P, --password <password>        certificate key password
     --ios                            enabled iOS (default: false)
     --production                     iOS production mode (default: false)
 Android Options:
-    -k, --apikey <api_key>           Android API Key
+    --fcm-key <fcm_key_path>         FCM Key Path
     --android                        enabled android (default: false)
 Huawei Options:
     -hk, --hmskey <hms_key>          HMS App Secret
     -hid, --hmsid <hms_id>           HMS App ID
     --huawei                         enabled huawei (default: false)
 Common Options:
-    --topic <topic>                  iOS or Android topic message
+    --topic <topic>                  iOS, Android or Huawei topic message
     -h, --help                       Show this message
     -V, --version                    Show version
 ```
 
 ### Send Android notification
 
+To authenticate a service account and authorize it to access Firebase services, you must generate a private key file in JSON format.
+
+1. In the Firebase console, open **Settings** > [Service Accounts](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk?_gl=1*1eqxjfp*_ga*MTQ0NjI5MTQ2MS4xNzA4NjA3MzU0*_ga_CW55HF8NVT*MTcxNzgxNDMyNi4xMS4xLjE3MTc4MTUyMzguNjAuMC4w).
+2. Click **Generate New Private Key**, then confirm by clicking **Generate Key**.
+3. Securely store the JSON file containing the key.
+
+When authorizing via a service account, you have two choices for providing the credentials to your application. You can either set the **GOOGLE_APPLICATION_CREDENTIALS** environment variable, or you can explicitly pass the path to the service account key in code. The first option is more secure and is strongly recommended.
+
 Send single notification with the following command.
 
 ```bash
-gorush -android -m "your message" -k "API Key" -t "Device token"
+gorush -android -m "your message" --fcm-key "FCM Credentials Key Path" -t "device token"
+
+# or set GOOGLE_APPLICATION_CREDENTIALS environment variable
+export GOOGLE_APPLICATION_CREDENTIALS="FCM Credentials Key Path"
+gorush -android -m "your message" -t "device token"
 ```
 
 Send messages to topics.
 
 ```bash
-gorush --android --topic "/topics/foo-bar" \
+gorush --android --topic "foo-bar" \
   -m "This is a Firebase Cloud Messaging Topic Message" \
-  -k your_api_key
+  --fcm-key "FCM Credentials Key Path"
 ```
 
 - `-m`: Notification message.
-- `-k`: [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging) api key
+- `--fcm-key`: [Firebase Cloud Messaging Provide credentials manually](https://firebase.google.com/docs/cloud-messaging/auth-server#provide-credentials-manually)
 - `-t`: Device token.
 - `--title`: Notification title.
 - `--topic`: Send messages to topics. note: don't add device token.
@@ -399,12 +413,14 @@ $ gorush -ios -m "your message" -i "your certificate path" \
   -production
 ```
 
-### Send Android or iOS notifications using Firebase
+### Send Android or iOS notifications using Firebase Cloud Messaging
 
 Send single notification with the following command:
 
 ```bash
-gorush -android -m "your message" -k "API key" -t "Device token"
+gorush -android -m "your message" \
+  --fcm-key "FCM Credentials Key Path" \
+  -t "Device token"
 ```
 
 ## Run gorush web server
@@ -418,10 +434,13 @@ $ gorush
 $ gorush -c config.yml
 ```
 
-Get go status of api server using [httpie](https://github.com/jkbrzt/httpie) tool:
+Get go status of api server using [httpie](https://github.com/httpie/cli) tool:
 
 ```bash
-http -v --verify=no --json GET http://localhost:8088/api/stat/go
+# install httpie
+brew install httpie
+# get go status
+http -v --json GET http://localhost:8088/api/stat/go
 ```
 
 ## Web API
@@ -588,6 +607,32 @@ Simple send notification on Android and iOS devices using Firebase, the `platfor
 }
 ```
 
+Send notification with custom sound on iOS devices, **volume must be in the interval [0, 1]**:
+
+```json
+{
+  "notifications": [
+    {
+      "tokens": ["token_a", "token_b"],
+      "title": "Hello World iOS!",
+      "message": "Hello World iOS!",
+      "platform": 2,
+      "apns": {
+        "payload": {
+          "aps": {
+            "sound": {
+              "name": "default",
+              "critical": 1,
+              "volume": 0.1
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
 Send multiple notifications as below:
 
 ```json
@@ -635,7 +680,6 @@ The Request body must have a notifications array. The following is a parameter t
 | retry                   | int          | retry send notification if fail response from server. Value must be small than `max_retry` field. | -        |                                                               |
 | topic                   | string       | send messages to topics                                                                           |          |                                                               |
 | image                   | string       | image url to show in notification                                                                 | -        | only Android and Huawei                                       |
-| api_key                 | string       | api key for firebase cloud message                                                                | -        | only Android                                                  |
 | to                      | string       | The value must be a registration token, notification key, or topic.                               | -        | only Android                                                  |
 | collapse_key            | string       | a key for collapsing notifications                                                                | -        | only Android                                                  |
 | huawei_collapse_key     | int          | a key integer for collapsing notifications                                                        | -        | only Huawei  See the [detail](#huawei-notification)           |
@@ -875,13 +919,13 @@ Add other fields which user defined via `data` field.
 }
 ```
 
-Send messages to topics
+Send messages to topic
 
 ```json
 {
   "notifications": [
     {
-      "to": "/topics/foo-bar",
+      "topic": "highScores",
       "platform": 2,
       "message": "This is a Firebase Cloud Messaging Topic Message"
     }
@@ -1062,7 +1106,7 @@ const (
 
 func main() {
   // Set up a connection to the server.
-  conn, err := grpc.Dial(address, grpc.WithInsecure())
+  conn, err := grpc.NewClient(address, grpc.WithInsecure())
   if err != nil {
     log.Fatalf("did not connect: %v", err)
   }
@@ -1165,7 +1209,7 @@ const (
 
 func main() {
   // Set up a connection to the server.
-  conn, err := grpc.Dial(address, grpc.WithInsecure())
+  conn, err := grpc.NewClient(address, grpc.WithInsecure())
   if err != nil {
     log.Fatalf("did not connect: %v", err)
   }
@@ -1328,17 +1372,18 @@ Or you can deploy gorush to alternative solution like [netlify functions](https:
 
 ```toml
 [build]
-  command = "./build.sh"
-  functions = "release/linux/lambda"
+command = "make build_linux_lambda"
+functions = "release/linux/lambda"
 
 [build.environment]
-  GO_IMPORT_PATH = "github.com/appleboy/gorush"
-  GO111MODULE = "on"
+GO111MODULE = "on"
+GO_IMPORT_PATH = "github.com/appleboy/gorush"
+GO_VERSION = "1.21.11"
 
 [[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/gorush/:splat"
-  status = 200
+from = "/*"
+status = 200
+to = "/.netlify/functions/gorush/:splat"
 ```
 
 ## Stargazers over time

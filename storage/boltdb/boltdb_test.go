@@ -4,7 +4,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/appleboy/gorush/config"
 	"github.com/appleboy/gorush/core"
 
 	"github.com/stretchr/testify/assert"
@@ -13,11 +12,14 @@ import (
 func TestBoltDBEngine(t *testing.T) {
 	var val int64
 
-	cfg, _ := config.LoadConf()
-
-	boltDB := New(cfg)
+	boltDB := New("", "gorush")
 	err := boltDB.Init()
 	assert.Nil(t, err)
+
+	// reset the value of the key to 0
+	boltDB.Set(core.HuaweiSuccessKey, 0)
+	val = boltDB.Get(core.HuaweiSuccessKey)
+	assert.Equal(t, int64(0), val)
 
 	boltDB.Add(core.HuaweiSuccessKey, 10)
 	val = boltDB.Get(core.HuaweiSuccessKey)

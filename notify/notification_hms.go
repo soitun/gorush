@@ -10,9 +10,9 @@ import (
 	"github.com/appleboy/gorush/logx"
 	"github.com/appleboy/gorush/status"
 
-	c "github.com/msalihkarakasli/go-hms-push/push/config"
-	client "github.com/msalihkarakasli/go-hms-push/push/core"
-	"github.com/msalihkarakasli/go-hms-push/push/model"
+	c "github.com/appleboy/go-hms-push/push/config"
+	client "github.com/appleboy/go-hms-push/push/core"
+	"github.com/appleboy/go-hms-push/push/model"
 )
 
 var (
@@ -77,10 +77,6 @@ func GetHuaweiNotification(req *PushNotification) (*model.MessageRequest, error)
 
 	if len(req.Topic) > 0 {
 		msgRequest.Message.Topic = req.Topic
-	}
-
-	if len(req.To) > 0 {
-		msgRequest.Message.Topic = req.To
 	}
 
 	if len(req.Condition) > 0 {
@@ -162,7 +158,7 @@ func GetHuaweiNotification(req *PushNotification) (*model.MessageRequest, error)
 }
 
 // PushToHuawei provide send notification to Android server.
-func PushToHuawei(req *PushNotification, cfg *config.ConfYaml) (resp *ResponsePush, err error) {
+func PushToHuawei(ctx context.Context, req *PushNotification, cfg *config.ConfYaml) (resp *ResponsePush, err error) {
 	logx.LogAccess.Debug("Start push notification for Huawei")
 
 	var (
@@ -196,10 +192,10 @@ Retry:
 
 	notification, _ := GetHuaweiNotification(req)
 
-	res, err := client.SendMessage(context.Background(), notification)
+	res, err := client.SendMessage(ctx, notification)
 	if err != nil {
 		// Send Message error
-		errLog := logPush(cfg, core.FailedPush, req.To, req, err)
+		errLog := logPush(cfg, core.FailedPush, req.Topic, req, err)
 		resp.Logs = append(resp.Logs, errLog)
 		logx.LogError.Error("HMS server send message error: " + err.Error())
 		return resp, err
